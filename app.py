@@ -3,52 +3,114 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-df = pd.read_csv('vehicles_us.csv')
+vehicles_data = pd.read_csv('vehicles_us.csv')
+vehicles_data['manufacturer'] = vehicles_data['model'].str.split().str[0]
 
-df['manufacturer'] = df['model'].apply(lambda x: x.split()[0])
+st.header('Vehicle Analysis Dashboard')
+st.dataframe(vehicles_data)
 
-st.header('Data viewer')
-show_manuf_1k_ads = st.checkbox('Include manufacturers with less than 1000 ads')
-if not show_manuf_1k_ads:
-    df = df.groupby('manufacturer').filter(lambda x: len(x) > 1000)
+#
 
-st.dataframe(df)
-st.header('Vehicle types by manufacturer')
-st.write(px.histogram(df, x='manufacturer', color='type'))
-st.header('Histogram of `condition` vs `model_year`')
+models_per_manufacturer = vehicles_data.groupby('manufacturer')['model'].nunique().reset_index(name= 'Number of Models')
 
-# -------------------------------------------------------
-# histograms in plotly:
-# fig = go.Figure()
-# fig.add_trace(go.Histogram(x=df[df['condition']=='good']['model_year'], name='good'))
-# fig.add_trace(go.Histogram(x=df[df['condition']=='excellent']['model_year'], name='excellent'))
-# fig.update_layout(barmode='stack')
-# st.write(fig)
-# works, but too many lines of code
-# -------------------------------------------------------
+show_fig1 = st.checkbox('Show Number of Different Car Models per Manufacturer')
 
-# histograms in plotly_express:
-st.write(px.histogram(df, x='model_year', color='condition'))
-# a lot more concise!
-# -------------------------------------------------------
+if show_fig1:
+    fig = px.bar(models_per_manufacturer, x='manufacturer', y='Number of Models',
+             title="Number of Models per Manufacturer",
+             labels={"Number of Models": "Count of Models", "manufacturer": "Manufacturer"})
 
-st.header('Compare price distribution between manufacturers')
-manufac_list = sorted(df['manufacturer'].unique())
-manufacturer_1 = st.selectbox('Select manufacturer 1',
-                              manufac_list, index=manufac_list.index('chevrolet'))
+    st.plotly_chart(fig)
+    st.markdown('This is a bar graph of the number of different car models each manufacturer has based on the data')
 
-manufacturer_2 = st.selectbox('Select manufacturer 2',
-                              manufac_list, index=manufac_list.index('hyundai'))
-mask_filter = (df['manufacturer'] == manufacturer_1) | (df['manufacturer'] == manufacturer_2)
-df_filtered = df[mask_filter]
-normalize = st.checkbox('Normalize histogram', value=True)
-if normalize:
-    histnorm = 'percent'
-else:
-    histnorm = None
-st.write(px.histogram(df_filtered,
-                      x='price',
-                      nbins=30,
-                      color='manufacturer',
-                      histnorm=histnorm,
-                      barmode='overlay'))
+#
+
+vehicle_type_counts = vehicles_data.groupby(['manufacturer', 'type'])['model'].count().reset_index(name='Number of Vehicles')
+pivot_df = vehicle_type_counts.pivot(index='manufacturer', columns='type', values= 'Number of Vehicles').fillna(0)
+
+melted_df = pivot_df.reset_index().melt(id_vars='manufacturer', var_name='type', value_name='Number of Vehicles')
+
+show_fig2 = st.checkbox('Show Distribution of different car types for each manufacturer')
+
+if show_fig2:
+    fig = px.bar(melted_df,
+             x='manufacturer',
+             y='Number of Vehicles',
+             color='type',  # Differentiates vehicle types with color
+             title='Distribution of Vehicle Types by Manufacturer')
+
+
+
+        # Rotated x-axis labels for better readability
+    fig.update_xaxes(tickangle=45)
+
+    st.plotly_chart(fig)
+    st.markdown('This is a bar graph that shows each manufacturers most common type of car that they build based on the data')
+
+#
+
+
+vehicles_data_clean = vehicles_data.dropna(subset=['price', 'manufacturer'])
+
+average_price_per_manufacturer = vehicles_data_clean.groupby('manufacturer')['price'].mean().reset_index(name='Average Price')
+
+show_fig3 = st.checkbox('Show average price per manufactuer')
+
+if show_fig3:
+    fig = px.scatter(average_price_per_manufacturer, x='Average Price', y='manufacturer',
+                 color='manufacturer',  # This assigns a unique color to each manufacturer
+                 hover_data=['manufacturer', 'Average Price'],  # Customize hover data
+                 title="Average Vehicle Price by Manufacturer")
+
+    st.plotly_chart(fig)
+    st.markdown('This is a scatter plot that shows us the average car price for each manufacturer based on the data')
+
+#
+
+show_fig4 = st.checkbox('Show average price distribution per manufacturer')
+
+if show_fig4:
+    fig = px.histogram(vehicles_data, 
+                   x="price", 
+                   color="manufacturer", 
+                   barmode="overlay", 
+                   nbins=50, 
+                   title="Price Distribution by Manufacturer")
+
+
+    st.plotly_chart(fig)
+    st.markdown('This histogram shows us the distribution of prices for each manufacturer')
+
+#
+
+show_fig5 = st.checkbox('Show the manufacturers whom had the best conditioned cars')
+
+if show_fig5:
+    condition_counts = vehicles_data.groupby(['manufacturer', 'condition']).size().reset_index(name='count')
+
+    fig = px.bar(condition_counts,
+             x='manufacturer',
+             y='count',
+             color='condition',
+             title='Car Conditions Across Manufacturers')
+
+    st.plotly_chart(fig)
+    st.markdown('This bar graph show us the manufacturers who had the most and least cars with certain conditions')
+
+#
+
+transmission_data = vehicles_data[['manufacturer', 'transmission']]
+transmission_counts = vehicles_data.groupby(['manufacturer','transmission']).size().reset_index(name='count')
+
+show_fig6 = st.checkbox('Show most frequent types of cars built regarding manual, automatic or other')
+
+if show_fig6:
+    fig = px.bar(transmission_counts,
+             x='manufacturer',
+             y='count',
+             color='transmission', # This will create different bars/colors for each transmission type
+             barmode='group', # This ensures that the bars for each transmission type are grouped
+             title='Count of Vehicle Transmissions by Manufacturer')
+
+    st.plotly_chart(fig)
+    st.markdown('This bar graph shows us the frequent types of transmissions the manufacturers most commonly built')
