@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 
 vehicles_data = pd.read_csv('vehicles_us.csv')
 
+
 vehicles_data['model_year'] = vehicles_data.groupby('model')['model_year'].transform(lambda x: x.fillna(x.median()))
 vehicles_data['cylinders'] = vehicles_data.groupby('model')['cylinders'].transform(lambda x: x.fillna(x.median()))
 vehicles_data['odometer'] = vehicles_data.groupby(['model_year', 'model'])['odometer'].transform(lambda x: x.fillna(x.median()))
@@ -23,28 +24,9 @@ vehicles_data = remove_outliers(vehicles_data, 'price')
 
 vehicles_data['manufacturer'] = vehicles_data['model'].str.split().str[0]
 
+
 st.header('Vehicle Analysis Dashboard')
 st.dataframe(vehicles_data)
-
-
-
-
-
-
-
-#
-
-models_per_manufacturer = vehicles_data.groupby('manufacturer')['model'].nunique().reset_index(name= 'Number of Models')
-
-show_fig1 = st.checkbox('Show Number of Different Car Models per Manufacturer')
-
-if show_fig1:
-    fig = px.bar(models_per_manufacturer, x='manufacturer', y='Number of Models',
-             title="Number of Models per Manufacturer",
-             labels={"Number of Models": "Count of Models", "manufacturer": "Manufacturer"})
-
-    st.plotly_chart(fig)
-    st.markdown('This is a bar graph of the number of different car models each manufacturer has based on the data')
 
 #
 
